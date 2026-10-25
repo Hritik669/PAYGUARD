@@ -1,0 +1,29 @@
+{
+  "name": "payguard",
+  "private": true,
+  "version": "1.0.0",
+  "description": "PayGuard sandbox payment and transaction reliability platform",
+  "scripts": {
+    "install:all": "npm install --prefix backend && npm install --prefix frontend",
+    "dev:api": "npm run dev --prefix backend",
+    "dev:worker": "npm run worker --prefix backend",
+    "dev:web": "npm run dev --prefix frontend",
+    "dev": "concurrently -n api,worker,web -c blue,magenta,green \"npm run dev --prefix backend\" \"npm run worker --prefix backend\" \"npm run dev --prefix frontend\"",
+    "docker:infra": "docker compose up -d postgres redis",
+    "docker:down": "docker compose down",
+    "docker:full": "docker compose up --build",
+    "db:migrate": "npm run db:deploy --prefix backend",
+    "db:seed": "npm run db:seed --prefix backend",
+    "test": "npm run test --prefix backend && npm run test --prefix frontend",
+    "test:unit": "npm run test:unit --prefix backend && npm run test --prefix frontend",
+    "test:integration": "npm run test:integration --prefix backend",
+    "build": "npm run build --prefix backend && npm run build --prefix frontend",
+    "lint": "npm run lint --prefix backend && npm run lint --prefix frontend",
+    "format": "npm run format --prefix backend && npm run format --prefix frontend",
+    "typecheck": "npm run typecheck --prefix backend && npm run typecheck --prefix frontend",
+    "perf:smoke": "node scripts/perf-smoke.mjs"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

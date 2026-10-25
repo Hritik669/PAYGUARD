@@ -1,0 +1,315 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  ANALYST
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  REQUIRES_RECONCILIATION
+}
+
+enum TransactionType {
+  AUTHORIZATION
+  CAPTURE
+  VOID
+  REFUND
+  ADJUSTMENT
+}
+
+enum TransactionStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+}
+
+enum IdempotencyStatus {
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+}
+
+enum WebhookEventStatus {
+  RECEIVED
+  PROCESSING
+  PROCESSED
+  FAILED
+  DEAD_LETTER
+}
+
+enum WebhookDeliveryStatus {
+  SUCCEEDED
+  FAILED
+  RETRY_SCHEDULED
+}
+
+enum ReconciliationRunStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum ReconciliationItemStatus {
+  OPEN
+  RESOLVED
+  IGNORED
+}
+
+enum MismatchType {
+  AMOUNT_MISMATCH
+  MISSING_PROVIDER_RECORD
+  MISSING_INTERNAL_RECORD
+  STATUS_MISMATCH
+  DUPLICATE_PROVIDER_EVENT
+}
+
+model User {
+  id                  String                 @id @default(uuid()) @db.Uuid
+  name                String
+  email               String                 @unique
+  passwordHash        String                 @map("password_hash")
+  role                Role
+  createdAt           DateTime               @default(now()) @map("created_at")
+  updatedAt           DateTime               @updatedAt @map("updated_at")
+  refreshSessions     RefreshSession[]
+  auditLogs           AuditLog[]
+  payments            Payment[]
+  reconciliationRuns  ReconciliationRun[]
+  resolvedItems       ReconciliationItem[]   @relation("ResolvedBy")
+
+  @@map("users")
+}
+
+model RefreshSession {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_sessions")
+}
+
+model Payment {
+  id                 String                   @id @default(uuid()) @db.Uuid
+  merchantReference  String                   @unique @map("merchant_reference")
+  providerReference  String?                  @unique @map("provider_reference")
+  amountMinor        Int                      @map("amount_minor")
+  currency           String
+  status             PaymentStatus
+  scenario           String
+  description        String?
+  idempotencyKey     String?                  @unique @map("idempotency_key")
+  failureCode        String?                  @map("failure_code")
+  failureMessage     String?                  @map("failure_message")
+  createdById        String?                  @map("created_by_id") @db.Uuid
+  createdAt          DateTime                 @default(now()) @map("created_at")
+  updatedAt          DateTime                 @updatedAt @map("updated_at")
+  createdBy          User?                    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  transactions       Transaction[]
+  webhookEvents      WebhookEvent[]
+  transitions        PaymentStateTransition[]
+  reconciliationItems ReconciliationItem[]
+
+  @@index([status, createdAt])
+  @@index([createdAt])
+  @@map("payments")
+}
+
+model PaymentStateTransition {
+  id         String         @id @default(uuid()) @db.Uuid
+  paymentId  String         @map("payment_id") @db.Uuid
+  fromStatus PaymentStatus? @map("from_status")
+  toStatus   PaymentStatus  @map("to_status")
+  reason     String?
+  actorId    String?        @map("actor_id") @db.Uuid
+  createdAt  DateTime       @default(now()) @map("created_at")
+  payment    Payment        @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@index([paymentId, createdAt])
+  @@map("payment_state_transitions")
+}
+
+model Transaction {
+  id              String            @id @default(uuid()) @db.Uuid
+  paymentId       String            @map("payment_id") @db.Uuid
+  transactionType TransactionType   @map("transaction_type")
+  amountMinor     Int               @map("amount_minor")
+  currency        String
+  status          TransactionStatus
+  reference       String            @unique
+  metadata        Json?
+  createdAt       DateTime          @default(now()) @map("created_at")
+  payment         Payment           @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@index([paymentId])
+  @@index([status, createdAt])
+  @@map("transactions")
+}
+
+model IdempotencyRecord {
+  id           String            @id @default(uuid()) @db.Uuid
+  key          String
+  scope        String
+  userId       String            @map("user_id") @db.Uuid
+  requestHash  String            @map("request_hash")
+  status       IdempotencyStatus
+  responseCode Int?              @map("response_code")
+  responseBody Json?             @map("response_body")
+  resourceId   String?           @map("resource_id")
+  version      Int               @default(0)
+  createdAt    DateTime          @default(now()) @map("created_at")
+  updatedAt    DateTime          @updatedAt @map("updated_at")
+  expiresAt    DateTime          @map("expires_at")
+
+  @@unique([scope, userId, key])
+  @@index([expiresAt])
+  @@map("idempotency_records")
+}
+
+model WebhookEvent {
+  id              String             @id @default(uuid()) @db.Uuid
+  providerEventId String             @unique @map("provider_event_id")
+  eventType       String             @map("event_type")
+  paymentId       String?            @map("payment_id") @db.Uuid
+  payload         Json
+  status          WebhookEventStatus
+  attempts        Int                @default(0)
+  nextAttemptAt   DateTime?          @map("next_attempt_at")
+  processedAt     DateTime?          @map("processed_at")
+  lastError       String?            @map("last_error")
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @updatedAt @map("updated_at")
+  payment         Payment?           @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  deliveries      WebhookDelivery[]
+  outbox          OutboxMessage?
+
+  @@index([status, nextAttemptAt])
+  @@index([paymentId])
+  @@map("webhook_events")
+}
+
+model WebhookDelivery {
+  id             String                @id @default(uuid()) @db.Uuid
+  webhookEventId String                @map("webhook_event_id") @db.Uuid
+  attemptNumber  Int                   @map("attempt_number")
+  status         WebhookDeliveryStatus
+  responseCode   Int?                  @map("response_code")
+  durationMs     Int?                  @map("duration_ms")
+  errorSummary   String?               @map("error_summary")
+  attemptedAt    DateTime              @default(now()) @map("attempted_at")
+  nextAttemptAt  DateTime?             @map("next_attempt_at")
+  event          WebhookEvent          @relation(fields: [webhookEventId], references: [id], onDelete: Cascade)
+
+  @@unique([webhookEventId, attemptNumber])
+  @@index([webhookEventId])
+  @@map("webhook_deliveries")
+}
+
+model OutboxMessage {
+  id             String       @id @default(uuid()) @db.Uuid
+  webhookEventId String       @unique @map("webhook_event_id") @db.Uuid
+  type           String
+  payload        Json
+  availableAt    DateTime     @default(now()) @map("available_at")
+  publishedAt    DateTime?    @map("published_at")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  event          WebhookEvent @relation(fields: [webhookEventId], references: [id], onDelete: Cascade)
+
+  @@index([publishedAt, availableAt])
+  @@map("outbox_messages")
+}
+
+model AuditLog {
+  id           String   @id @default(uuid()) @db.Uuid
+  actorId      String?  @map("actor_id") @db.Uuid
+  action       String
+  resourceType String   @map("resource_type")
+  resourceId   String?  @map("resource_id")
+  metadata     Json?
+  requestId    String?  @map("request_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  actor        User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([actorId, createdAt])
+  @@index([resourceType, resourceId])
+  @@map("audit_logs")
+}
+
+model ReconciliationRun {
+  id              String                  @id @default(uuid()) @db.Uuid
+  status          ReconciliationRunStatus
+  startedAt       DateTime                @default(now()) @map("started_at")
+  completedAt     DateTime?               @map("completed_at")
+  matchedCount    Int                     @default(0) @map("matched_count")
+  mismatchCount   Int                     @default(0) @map("mismatch_count")
+  unresolvedCount Int                     @default(0) @map("unresolved_count")
+  summary         Json?
+  triggeredById   String?                 @map("triggered_by_id") @db.Uuid
+  triggeredBy     User?                   @relation(fields: [triggeredById], references: [id], onDelete: SetNull)
+  items           ReconciliationItem[]
+
+  @@index([startedAt])
+  @@map("reconciliation_runs")
+}
+
+model ReconciliationItem {
+  id             String                   @id @default(uuid()) @db.Uuid
+  runId          String                   @map("run_id") @db.Uuid
+  paymentId      String?                  @map("payment_id") @db.Uuid
+  mismatchType   MismatchType             @map("mismatch_type")
+  status         ReconciliationItemStatus @default(OPEN)
+  internalValue  Json?                    @map("internal_value")
+  providerValue  Json?                    @map("provider_value")
+  resolutionNote String?                  @map("resolution_note")
+  resolvedById   String?                  @map("resolved_by_id") @db.Uuid
+  resolvedAt     DateTime?                @map("resolved_at")
+  createdAt      DateTime                 @default(now()) @map("created_at")
+  run            ReconciliationRun        @relation(fields: [runId], references: [id], onDelete: Cascade)
+  payment        Payment?                 @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  resolvedBy     User?                    @relation("ResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  @@index([runId, status])
+  @@index([mismatchType])
+  @@map("reconciliation_items")
+}
+
+model ProviderStatement {
+  id                String   @id @default(uuid()) @db.Uuid
+  providerReference String   @unique @map("provider_reference")
+  merchantReference String   @map("merchant_reference")
+  amountMinor       Int      @map("amount_minor")
+  currency          String
+  status            String
+  statementDate     DateTime @map("statement_date")
+  batchId           String   @map("batch_id")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  @@index([merchantReference])
+  @@index([batchId])
+  @@map("provider_statements")
+}
+
+model WorkerHeartbeat {
+  id         String   @id
+  lastSeenAt DateTime @map("last_seen_at")
+  metadata   Json?
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("worker_heartbeats")
+}

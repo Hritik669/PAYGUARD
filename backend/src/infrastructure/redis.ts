@@ -1,4 +1,4 @@
-import Redis from "ioredis";
+import Redis, { type RedisOptions } from "ioredis";
 import { loadEnv } from "../config/env";
 import { logger } from "./logger";
 
@@ -15,14 +15,25 @@ function attachLogging(client: Redis, name: string): Redis {
   return client;
 }
 
+function redisOptions(url: string, overrides: RedisOptions): RedisOptions {
+  return {
+    connectTimeout: 10_000,
+    enableReadyCheck: true,
+    ...(url.startsWith("rediss://") ? { tls: { rejectUnauthorized: true } } : {}),
+    ...overrides,
+  };
+}
+
 export function getRedis(): Redis {
   if (!shared) {
+    const url = loadEnv().REDIS_URL;
     shared = attachLogging(
-      new Redis(loadEnv().REDIS_URL, {
-        maxRetriesPerRequest: 2,
-        enableReadyCheck: true,
-        connectTimeout: 5_000,
-      }),
+      new Redis(
+        url,
+        redisOptions(url, {
+          maxRetriesPerRequest: 2,
+        }),
+      ),
       "shared",
     );
   }
@@ -30,11 +41,14 @@ export function getRedis(): Redis {
 }
 
 export function createBullConnection(): Redis {
+  const url = loadEnv().REDIS_URL;
   const connection = attachLogging(
-    new Redis(loadEnv().REDIS_URL, {
-      maxRetriesPerRequest: null,
-      enableReadyCheck: true,
-    }),
+    new Redis(
+      url,
+      redisOptions(url, {
+        maxRetriesPerRequest: null,
+      }),
+    ),
     "bullmq",
   );
   bullConnections.push(connection);

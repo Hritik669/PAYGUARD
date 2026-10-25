@@ -26,8 +26,8 @@ async function main(): Promise<void> {
     await getPrisma().$queryRaw`SELECT 1`;
   });
   const app = createApp();
-  const server = app.listen(env.PORT, () => {
-    logger.info({ port: env.PORT }, "PayGuard API listening");
+  const server = app.listen(env.PORT, env.HOST, () => {
+    logger.info({ port: env.PORT, host: env.HOST }, "PayGuard API listening");
   });
   server.requestTimeout = 30_000;
 

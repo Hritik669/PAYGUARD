@@ -22,6 +22,7 @@ async function main(): Promise<void> {
   }
 
   const connection = createBullConnection();
+  const concurrency = loadEnv().WORKER_CONCURRENCY;
   const worker = new Worker(
     WEBHOOK_QUEUE,
     async (job) => {
@@ -29,7 +30,7 @@ async function main(): Promise<void> {
       if (typeof eventId !== "string") return;
       await processWebhookEvent(eventId);
     },
-    { connection, concurrency: 8 },
+    { connection, concurrency },
   );
   worker.on("failed", (job, err) => {
     logger.error({ err, jobId: job?.id }, "webhook job failed");
@@ -41,7 +42,7 @@ async function main(): Promise<void> {
     void beat().catch((err) => logWorkerLoopError("heartbeat", err));
   }, 2000);
 
-  logger.info("PayGuard webhook worker started");
+  logger.info({ concurrency }, "PayGuard webhook worker started");
 
   let closing = false;
   const shutdown = async (signal: string) => {

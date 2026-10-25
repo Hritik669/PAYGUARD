@@ -16,6 +16,7 @@ export default defineConfig({
       LOG_LEVEL: "silent",
       PORT: "4001",
       DATABASE_URL: databaseUrl,
+      DIRECT_URL: databaseUrl,
       REDIS_URL: "redis://127.0.0.1:6379",
       JWT_ACCESS_SECRET: "test-access-secret-with-32-characters",
       JWT_REFRESH_SECRET: "test-refresh-secret-with-32-characters",

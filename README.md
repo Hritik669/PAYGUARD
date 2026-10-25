@@ -51,6 +51,8 @@ npm install --prefix backend
 npm install --prefix frontend
 npm run db:migrate
 npm run db:seed
+# After the first seed, replacing the dataset requires:
+# SEED_REPLACE=true npm run db:seed
 npm run dev
 ```
 
@@ -64,13 +66,15 @@ cp backend/.env.example backend/.env
 docker compose up --build
 ```
 
-The seeded database is applied by the API container on startup. Seed demo data with:
+Compose applies migrations when the API container starts. It does not seed data. Seed once into an empty database:
 
 ```bash
 docker compose run --rm backend npm run db:seed
 ```
 
-The web UI is published on port 8080. This session verified the app against a local PostgreSQL 18 and Redis, not a Compose build, because the Docker daemon was not running.
+To replace an existing sandbox dataset, add `SEED_REPLACE=true`. The web UI is published on port 8080.
+
+Public hosting on Render, Neon, and Upstash is described in [docs/deployment.md](docs/deployment.md). Environment names are listed in [docs/environment.md](docs/environment.md).
 
 ## Demo logins
 
@@ -157,3 +161,4 @@ A local browser pass confirmed the seeded overview (42 payments, mixed statuses)
 - Dashboard figures can be up to 30 seconds stale. Payment status is always read from PostgreSQL.
 - The access-token denylist depends on Redis. Refresh revocation in PostgreSQL is the real logout boundary.
 - Rate limits fail closed while Redis is unavailable.
+- A free Render web service sleeps after idle time, and the webhook worker sleeps with it. That is not a production payment processor. See [docs/deployment.md](docs/deployment.md).

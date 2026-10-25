@@ -37,13 +37,17 @@ export function shouldAttemptRefresh(status: number | undefined, url: string | u
 function normalize(error: AxiosError<{ error?: { code?: string; message?: string; details?: unknown } }>): ApiError {
   const status = error.response?.status ?? 0;
   const body = error.response?.data?.error;
-  return new ApiError(status, body?.code ?? "NETWORK_ERROR", body?.message ?? "The PayGuard API could not be reached.", body?.details);
+  const unreachable = status === 0 || error.code === "ECONNABORTED";
+  const message = unreachable
+    ? "The PayGuard API did not respond. A free host can take about a minute to wake up. Wait, then try again."
+    : (body?.message ?? "The PayGuard API could not be reached.");
+  return new ApiError(status, body?.code ?? "NETWORK_ERROR", message, body?.details);
 }
 
 export const api = axios.create({
   baseURL,
   withCredentials: true,
-  timeout: 20000,
+  timeout: 70_000,
 });
 
 api.interceptors.request.use((config) => {

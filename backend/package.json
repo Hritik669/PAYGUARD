@@ -13,6 +13,7 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
+    "db:rotate-password": "tsx scripts/rotate-demo-password.ts",
     "db:reset": "prisma migrate reset --force",
     "test": "vitest run --config vitest.unit.config.ts && vitest run --config vitest.integration.config.ts",
     "test:unit": "vitest run --config vitest.unit.config.ts",

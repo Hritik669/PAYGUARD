@@ -1,5 +1,6 @@
 import { randomBytes } from "crypto";
 import type { NextFunction, Request, Response } from "express";
+import { authCookiePolicy } from "../../modules/identity/cookies";
 import { loadEnv } from "../../config/env";
 import { AppError } from "../errors";
 
@@ -8,9 +9,8 @@ const UNSAFE = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 function csrfCookieOptions() {
   const env = loadEnv();
   return {
+    ...authCookiePolicy(),
     httpOnly: false,
-    secure: env.COOKIE_SECURE,
-    sameSite: "lax" as const,
     path: "/",
     maxAge: env.REFRESH_TOKEN_TTL_SECONDS * 1000,
   };
@@ -23,11 +23,9 @@ export function issueCsrfToken(res: Response, existing?: string): string {
 }
 
 export function clearCsrfCookie(res: Response): void {
-  const env = loadEnv();
   res.clearCookie("payguard_csrf", {
+    ...authCookiePolicy(),
     httpOnly: false,
-    secure: env.COOKIE_SECURE,
-    sameSite: "lax",
     path: "/",
   });
 }

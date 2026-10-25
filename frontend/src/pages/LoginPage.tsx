@@ -64,7 +64,7 @@ export function LoginPage() {
         <form className="card w-full max-w-md p-6" onSubmit={form.handleSubmit(onSubmit)} noValidate>
           <p className="text-xs font-semibold tracking-[0.14em] text-accent uppercase">Sign in</p>
           <h2 className="mt-2 text-2xl font-semibold">Operations console</h2>
-          <p className="mt-1 text-sm text-muted">Local demo credentials are seeded for this machine only.</p>
+          <p className="mt-1 text-sm text-muted">Sandbox demo accounts only. These passwords are public and do not access a real bank.</p>
           <div className="mt-5 grid gap-3">
             <label className="field">
               <span>Email</span>

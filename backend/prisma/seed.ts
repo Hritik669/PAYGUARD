@@ -18,7 +18,14 @@ function daysAgo(days: number, hour = 12): Date {
 
 async function main(): Promise<void> {
   if (process.env.NODE_ENV === "production" && process.env.ALLOW_DEMO_SEED !== "true") {
-    throw new Error("Refusing to seed demo credentials while NODE_ENV=production.");
+    throw new Error("Refusing to seed demo credentials while NODE_ENV=production. Set ALLOW_DEMO_SEED=true for one explicit run.");
+  }
+
+  const [existingUsers, existingPayments] = await Promise.all([prisma.user.count(), prisma.payment.count()]);
+  if ((existingUsers > 0 || existingPayments > 0) && process.env.SEED_REPLACE !== "true") {
+    throw new Error(
+      "Demo data already exists. Refusing to delete it. Set SEED_REPLACE=true to replace the sandbox dataset.",
+    );
   }
 
   await prisma.webhookDelivery.deleteMany();

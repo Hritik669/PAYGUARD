@@ -34,12 +34,15 @@ services:
     env_file:
       - ./backend/.env
     environment:
-      NODE_ENV: production
+      NODE_ENV: development
       DATABASE_URL: postgresql://${POSTGRES_USER:-payguard}:${POSTGRES_PASSWORD:-payguard}@postgres:5432/${POSTGRES_DB:-payguard}?schema=public
+      DIRECT_URL: postgresql://${POSTGRES_USER:-payguard}:${POSTGRES_PASSWORD:-payguard}@postgres:5432/${POSTGRES_DB:-payguard}?schema=public
       REDIS_URL: redis://redis:6379
       CORS_ORIGINS: http://localhost:${WEB_PORT:-8080}
       COOKIE_SECURE: "false"
+      COOKIE_SAMESITE: lax
       PORT: 4000
+    command: ["sh", "-c", "node node_modules/prisma/build/index.js migrate deploy && node dist/index.js"]
     ports:
       - "${API_PORT:-4000}:4000"
     depends_on:
@@ -61,10 +64,12 @@ services:
     env_file:
       - ./backend/.env
     environment:
-      NODE_ENV: production
+      NODE_ENV: development
       DATABASE_URL: postgresql://${POSTGRES_USER:-payguard}:${POSTGRES_PASSWORD:-payguard}@postgres:5432/${POSTGRES_DB:-payguard}?schema=public
+      DIRECT_URL: postgresql://${POSTGRES_USER:-payguard}:${POSTGRES_PASSWORD:-payguard}@postgres:5432/${POSTGRES_DB:-payguard}?schema=public
       REDIS_URL: redis://redis:6379
       COOKIE_SECURE: "false"
+      COOKIE_SAMESITE: lax
     depends_on:
       postgres:
         condition: service_healthy

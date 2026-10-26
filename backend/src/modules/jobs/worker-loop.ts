@@ -3,6 +3,7 @@ import { getPrisma } from "../../infrastructure/prisma";
 import { getWebhookQueue } from "../../infrastructure/queue";
 import { logger } from "../../infrastructure/logger";
 import { listUnpublishedOutbox } from "../webhooks/outbox";
+import { dispatchMerchantBatch, recoverStuckMerchantDeliveries } from "../merchant-webhooks/dispatcher";
 import { recoverStuckWebhooks } from "../webhooks/processor";
 
 export async function publishOutboxBatch(): Promise<number> {
@@ -27,6 +28,11 @@ export async function publishOutboxBatch(): Promise<number> {
 
 export async function recoverPendingWork(): Promise<void> {
   await recoverStuckWebhooks();
+  await recoverStuckMerchantDeliveries();
+}
+
+export async function dispatchMerchantWork(): Promise<number> {
+  return dispatchMerchantBatch();
 }
 
 export async function beat(): Promise<void> {

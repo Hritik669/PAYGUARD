@@ -19,6 +19,9 @@ enum PaymentStatus {
   SUCCEEDED
   FAILED
   REQUIRES_RECONCILIATION
+  VOIDED
+  PARTIALLY_REFUNDED
+  REFUNDED
 }
 
 enum TransactionType {
@@ -122,9 +125,10 @@ model Payment {
   updatedAt          DateTime                 @updatedAt @map("updated_at")
   createdBy          User?                    @relation(fields: [createdById], references: [id], onDelete: SetNull)
   transactions       Transaction[]
-  webhookEvents      WebhookEvent[]
-  transitions        PaymentStateTransition[]
+  webhookEvents       WebhookEvent[]
+  transitions         PaymentStateTransition[]
   reconciliationItems ReconciliationItem[]
+  merchantDeliveries  MerchantDelivery[]
 
   @@index([status, createdAt])
   @@index([createdAt])
@@ -313,4 +317,81 @@ model WorkerHeartbeat {
   updatedAt  DateTime @updatedAt @map("updated_at")
 
   @@map("worker_heartbeats")
+}
+
+enum MerchantEndpointStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum MerchantDeliveryStatus {
+  PENDING
+  PROCESSING
+  DELIVERED
+  FAILED
+  DEAD_LETTER
+}
+
+model MerchantEndpoint {
+  id            String                 @id @default(uuid()) @db.Uuid
+  url           String
+  description   String
+  signingSecret String                 @map("signing_secret")
+  eventTypes    Json                   @map("event_types")
+  status        MerchantEndpointStatus @default(ACTIVE)
+  createdAt     DateTime               @default(now()) @map("created_at")
+  updatedAt     DateTime               @updatedAt @map("updated_at")
+  deliveries    MerchantDelivery[]
+
+  @@index([status])
+  @@map("merchant_endpoints")
+}
+
+model MerchantDelivery {
+  id            String                 @id @default(uuid()) @db.Uuid
+  endpointId    String                 @map("endpoint_id") @db.Uuid
+  paymentId     String?                @map("payment_id") @db.Uuid
+  eventType     String                 @map("event_type")
+  payload       Json
+  status        MerchantDeliveryStatus @default(PENDING)
+  attempts      Int                    @default(0)
+  nextAttemptAt DateTime?              @map("next_attempt_at")
+  lastError     String?                @map("last_error")
+  deliveredAt   DateTime?              @map("delivered_at")
+  createdAt     DateTime               @default(now()) @map("created_at")
+  updatedAt     DateTime               @updatedAt @map("updated_at")
+  endpoint      MerchantEndpoint       @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+  payment       Payment?               @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  attemptsLog   MerchantDeliveryAttempt[]
+
+  @@index([status, nextAttemptAt])
+  @@index([paymentId])
+  @@map("merchant_deliveries")
+}
+
+model MerchantDeliveryAttempt {
+  id           String                 @id @default(uuid()) @db.Uuid
+  deliveryId   String                 @map("delivery_id") @db.Uuid
+  attemptNumber Int                   @map("attempt_number")
+  status       MerchantDeliveryStatus
+  responseCode Int?                   @map("response_code")
+  durationMs   Int?                   @map("duration_ms")
+  errorSummary String?                @map("error_summary")
+  attemptedAt  DateTime               @default(now()) @map("attempted_at")
+  delivery     MerchantDelivery       @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+
+  @@unique([deliveryId, attemptNumber])
+  @@map("merchant_delivery_attempts")
+}
+
+model MerchantSinkReceipt {
+  id         String   @id @default(uuid()) @db.Uuid
+  endpointId String   @map("endpoint_id") @db.Uuid
+  eventType  String   @map("event_type")
+  paymentId  String?  @map("payment_id")
+  payload    Json
+  receivedAt DateTime @default(now()) @map("received_at")
+
+  @@index([receivedAt])
+  @@map("merchant_sink_receipts")
 }

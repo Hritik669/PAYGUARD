@@ -18,7 +18,7 @@ export const createPaymentBodySchema = z.object({
 export const paymentListQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
-  status: z.enum(["PENDING", "PROCESSING", "SUCCEEDED", "FAILED", "REQUIRES_RECONCILIATION"]).optional(),
+  status: z.enum(["PENDING", "PROCESSING", "SUCCEEDED", "FAILED", "REQUIRES_RECONCILIATION", "VOIDED", "PARTIALLY_REFUNDED", "REFUNDED"]).optional(),
   currency: currencySchema.optional(),
   q: z.string().trim().min(1).max(100).optional(),
   from: z.coerce.date().optional(),
@@ -28,6 +28,15 @@ export const paymentListQuerySchema = z.object({
 
 export const idParamSchema = z.object({
   id: z.string().uuid(),
+});
+
+export const refundBodySchema = z.object({
+  amountMinor: z.number().int().positive().max(100_000_000_00),
+  reason: z.string().trim().min(3).max(280),
+});
+
+export const voidBodySchema = z.object({
+  reason: z.string().trim().min(3).max(280),
 });
 
 export const simulateBodySchema = z.object({

@@ -206,6 +206,66 @@ describe("webhooks, reconciliation, and constraints", () => {
   });
 });
 
+describe("refunds, voids, and exceptions", () => {
+  it("refunds up to the captured amount and voids only a pre-capture payment", async () => {
+    const admin = await login(adminCredentials.email, adminCredentials.password);
+    const stamp = Date.now();
+    const created = await request(app)
+      .post("/api/v1/payments")
+      .set("Cookie", admin.cookie)
+      .set("X-CSRF-Token", admin.csrf)
+      .set("Idempotency-Key", `refund-create-${stamp}`)
+      .send({ merchantReference: `refund_${stamp}`, amountMinor: 1000, currency: "USD", scenario: "success" });
+    expect(created.status).toBe(201);
+
+    const partial = await request(app)
+      .post(`/api/v1/payments/${created.body.data.id}/refunds`)
+      .set("Cookie", admin.cookie)
+      .set("X-CSRF-Token", admin.csrf)
+      .set("Idempotency-Key", `refund-partial-${stamp}`)
+      .send({ amountMinor: 400, reason: "Partial sandbox refund." });
+    expect(partial.status).toBe(200);
+    expect(partial.body.data.status).toBe("PARTIALLY_REFUNDED");
+    expect(partial.body.data.refundableAmountMinor).toBe(600);
+
+    const tooMuch = await request(app)
+      .post(`/api/v1/payments/${created.body.data.id}/refunds`)
+      .set("Cookie", admin.cookie)
+      .set("X-CSRF-Token", admin.csrf)
+      .set("Idempotency-Key", `refund-too-much-${stamp}`)
+      .send({ amountMinor: 700, reason: "This refund is too large." });
+    expect(tooMuch.status).toBe(409);
+
+    const pending = await request(app)
+      .post("/api/v1/payments")
+      .set("Cookie", admin.cookie)
+      .set("X-CSRF-Token", admin.csrf)
+      .set("Idempotency-Key", `void-create-${stamp}`)
+      .send({ merchantReference: `void_${stamp}`, amountMinor: 500, currency: "USD", scenario: "delayed_webhook" });
+    expect(pending.status).toBe(202);
+    const voided = await request(app)
+      .post(`/api/v1/payments/${pending.body.data.id}/void`)
+      .set("Cookie", admin.cookie)
+      .set("X-CSRF-Token", admin.csrf)
+      .set("Idempotency-Key", `void-apply-${stamp}`)
+      .send({ reason: "Customer cancelled before capture." });
+    expect(voided.status).toBe(200);
+    expect(voided.body.data.status).toBe("VOIDED");
+
+    const capturedVoid = await request(app)
+      .post(`/api/v1/payments/${created.body.data.id}/void`)
+      .set("Cookie", admin.cookie)
+      .set("X-CSRF-Token", admin.csrf)
+      .set("Idempotency-Key", `void-captured-${stamp}`)
+      .send({ reason: "Too late to void." });
+    expect(capturedVoid.status).toBe(409);
+
+    const exceptions = await request(app).get("/api/v1/exceptions").set("Cookie", admin.cookie);
+    expect(exceptions.status).toBe(200);
+    expect(Array.isArray(exceptions.body.data)).toBe(true);
+  });
+});
+
 afterAll(async () => {
   await closeQueues().catch(() => undefined);
   await disconnectRedis().catch(() => undefined);

@@ -35,7 +35,11 @@ export function csrfProtection(req: Request, res: Response, next: NextFunction):
     next();
     return;
   }
-  if (req.path === "/api/v1/auth/login" || req.path === "/api/v1/webhooks/sandbox/events") {
+  if (
+    req.path === "/api/v1/auth/login" ||
+    req.path === "/api/v1/webhooks/sandbox/events" ||
+    req.path === "/api/v1/merchant-webhooks/sink"
+  ) {
     next();
     return;
   }

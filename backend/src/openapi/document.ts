@@ -12,6 +12,8 @@ export const openApiDocument = {
     { name: "Payments" },
     { name: "Transactions" },
     { name: "Webhooks" },
+    { name: "Merchant webhooks" },
+    { name: "Exceptions" },
     { name: "Reconciliation" },
     { name: "Audit" },
     { name: "Dashboard" },
@@ -208,6 +210,31 @@ export const openApiDocument = {
         description: "Admin-only. Resolve or ignore an open item. Repeating the call is safe and does not change payment state.",
         responses: { "200": { description: "Item resolution." } },
       },
+    },
+    "/payments/{id}/refunds": {
+      post: {
+        tags: ["Payments"],
+        security: [{ cookieAuth: [], csrfHeader: [] }],
+        parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }],
+        description: "Admin-only. Refund part or all of a succeeded capture. The refunded total cannot exceed the captured amount.",
+        responses: { "200": { description: "Payment after the refund." }, "409": { description: "REFUND_EXCEEDS_CAPTURE or REFUND_NOT_ALLOWED" } },
+      },
+    },
+    "/payments/{id}/void": {
+      post: {
+        tags: ["Payments"],
+        security: [{ cookieAuth: [], csrfHeader: [] }],
+        parameters: [{ $ref: "#/components/parameters/IdempotencyKey" }],
+        description: "Admin-only. Void a pending or processing payment before capture.",
+        responses: { "200": { description: "Payment voided." }, "409": { description: "VOID_NOT_ALLOWED" } },
+      },
+    },
+    "/exceptions": {
+      get: { tags: ["Exceptions"], security: [{ cookieAuth: [] }], responses: { "200": { description: "Unknown outcomes, open mismatches, and failed webhooks." } } },
+    },
+    "/merchant-webhooks": {
+      get: { tags: ["Merchant webhooks"], security: [{ cookieAuth: [] }], responses: { "200": { description: "Endpoints. Signing secrets are omitted." } } },
+      post: { tags: ["Merchant webhooks"], security: [{ cookieAuth: [], csrfHeader: [] }], responses: { "201": { description: "Endpoint created. The signing secret is returned once." } } },
     },
     "/audit-logs": {
       get: { tags: ["Audit"], security: [{ cookieAuth: [] }], responses: { "200": { description: "Admin-only audit history." }, "403": { description: "FORBIDDEN" } } },

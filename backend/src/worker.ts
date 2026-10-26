@@ -5,7 +5,7 @@ import { logger } from "./infrastructure/logger";
 import { WEBHOOK_QUEUE } from "./infrastructure/queue";
 import { disconnectPrisma, getPrisma } from "./infrastructure/prisma";
 import { createBullConnection, disconnectRedis } from "./infrastructure/redis";
-import { beat, logWorkerLoopError, publishOutboxBatch, recoverPendingWork } from "./modules/jobs/worker-loop";
+import { beat, dispatchMerchantWork, logWorkerLoopError, publishOutboxBatch, recoverPendingWork } from "./modules/jobs/worker-loop";
 import { processWebhookEvent } from "./modules/webhooks/processor";
 
 async function main(): Promise<void> {
@@ -38,6 +38,7 @@ async function main(): Promise<void> {
 
   const timer = setInterval(() => {
     void publishOutboxBatch().catch((err) => logWorkerLoopError("outbox", err));
+    void dispatchMerchantWork().catch((err) => logWorkerLoopError("merchant-webhooks", err));
     void recoverPendingWork().catch((err) => logWorkerLoopError("recovery", err));
     void beat().catch((err) => logWorkerLoopError("heartbeat", err));
   }, 2000);

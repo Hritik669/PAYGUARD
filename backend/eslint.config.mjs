@@ -12,6 +12,9 @@ const nodeGlobals = {
   clearInterval: "readonly",
   __dirname: "readonly",
   __filename: "readonly",
+  URL: "readonly",
+  fetch: "readonly",
+  AbortSignal: "readonly",
 };
 
 export default [

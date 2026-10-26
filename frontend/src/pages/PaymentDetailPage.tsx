@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -27,8 +28,24 @@ export function PaymentDetailPage() {
     },
     onError: (error) => toast.error(getErrorMessage(error)),
   });
+  const [refundAmount, setRefundAmount] = useState("");
   const payment = query.data;
   const canSimulate = user?.permissions.includes("payments:simulate") ?? false;
+  const canAdjust = user?.permissions.includes("payments:refund") ?? false;
+  const adjust = useMutation({
+    mutationFn: async (input: { path: "refunds" | "void"; body: Record<string, unknown> }) =>
+      (await api.post<Envelope<PaymentDetail>>(`/payments/${id}/${input.path}`, input.body, {
+        headers: { "Idempotency-Key": `ui-${input.path}-${crypto.randomUUID()}` },
+      })).data.data,
+    onSuccess: async (next) => {
+      toast.success(`Payment is now ${next.status}.`);
+      setRefundAmount("");
+      await queryClient.invalidateQueries({ queryKey: ["payment", id] });
+      await queryClient.invalidateQueries({ queryKey: ["payments"] });
+      await queryClient.invalidateQueries({ queryKey: ["merchant-deliveries"] });
+    },
+    onError: (error) => toast.error(getErrorMessage(error)),
+  });
 
   return (
     <div>
@@ -47,6 +64,8 @@ export function PaymentDetailPage() {
               <KeyValue label="Amount" value={formatMoney(payment.amountMinor, payment.currency)} />
               <KeyValue label="Provider reference" value={<span className="mono text-xs">{payment.providerReference ?? "Not assigned"}</span>} />
               <KeyValue label="Scenario" value={payment.scenario} />
+              <KeyValue label="Refunded" value={formatMoney(payment.refundedAmountMinor, payment.currency)} />
+              <KeyValue label="Still refundable" value={formatMoney(payment.refundableAmountMinor, payment.currency)} />
               <KeyValue label="Failure" value={payment.failureMessage ?? "None"} />
               <KeyValue label="Created" value={formatWhen(payment.createdAt)} />
               <KeyValue label="Updated" value={formatWhen(payment.updatedAt)} />
@@ -60,6 +79,29 @@ export function PaymentDetailPage() {
             ) : (
               <p className="mt-5 text-sm text-muted">Your role can view this payment. Simulation is limited to administrators.</p>
             )}
+            {canAdjust && payment.refundableAmountMinor > 0 ? (
+              <form
+                className="mt-4 flex flex-wrap items-end gap-2"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  adjust.mutate({
+                    path: "refunds",
+                    body: { amountMinor: Number(refundAmount), reason: "Sandbox refund issued by an operator." },
+                  });
+                }}
+              >
+                <label className="field">
+                  <span>Refund minor units</span>
+                  <input value={refundAmount} onChange={(event) => setRefundAmount(event.target.value)} inputMode="numeric" placeholder={String(payment.refundableAmountMinor)} />
+                </label>
+                <Button type="submit" disabled={adjust.isPending}>Refund</Button>
+              </form>
+            ) : null}
+            {canAdjust && (payment.status === "PENDING" || payment.status === "PROCESSING") ? (
+              <Button className="mt-4" variant="secondary" disabled={adjust.isPending} onClick={() => adjust.mutate({ path: "void", body: { reason: "Sandbox void before capture." } })}>
+                Void before capture
+              </Button>
+            ) : null}
           </section>
           <section className="card p-5">
             <h2 className="mb-3 text-sm font-semibold">State history</h2>

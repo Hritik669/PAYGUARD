@@ -2,11 +2,14 @@ import type { PaymentStatus } from "@prisma/client";
 import { AppError } from "../../common/errors";
 
 const ALLOWED: Record<PaymentStatus, readonly PaymentStatus[]> = {
-  PENDING: ["PROCESSING", "SUCCEEDED", "FAILED", "REQUIRES_RECONCILIATION"],
-  PROCESSING: ["SUCCEEDED", "FAILED", "REQUIRES_RECONCILIATION"],
+  PENDING: ["PROCESSING", "SUCCEEDED", "FAILED", "REQUIRES_RECONCILIATION", "VOIDED"],
+  PROCESSING: ["SUCCEEDED", "FAILED", "REQUIRES_RECONCILIATION", "VOIDED"],
   REQUIRES_RECONCILIATION: ["SUCCEEDED", "FAILED"],
-  SUCCEEDED: [],
+  SUCCEEDED: ["PARTIALLY_REFUNDED", "REFUNDED"],
+  PARTIALLY_REFUNDED: ["PARTIALLY_REFUNDED", "REFUNDED"],
   FAILED: [],
+  VOIDED: [],
+  REFUNDED: [],
 };
 
 export function canTransition(from: PaymentStatus, to: PaymentStatus): boolean {
@@ -24,5 +27,5 @@ export function assertTransition(from: PaymentStatus, to: PaymentStatus): void {
 }
 
 export function isTerminal(status: PaymentStatus): boolean {
-  return status === "SUCCEEDED" || status === "FAILED";
+  return status === "FAILED" || status === "VOIDED" || status === "REFUNDED";
 }

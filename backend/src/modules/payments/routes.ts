@@ -7,7 +7,7 @@ import { validateBody, validateParams, validateQuery } from "../../common/middle
 import { transactionController } from "../transactions/controller";
 import { transactionListQuerySchema } from "../transactions/validators";
 import * as controller from "./controller";
-import { createPaymentBodySchema, idParamSchema, paymentListQuerySchema, simulateBodySchema } from "./validators";
+import { createPaymentBodySchema, idParamSchema, paymentListQuerySchema, refundBodySchema, simulateBodySchema, voidBodySchema } from "./validators";
 
 export const paymentRouter = Router();
 
@@ -34,6 +34,20 @@ paymentRouter.get(
   validateParams(idParamSchema),
   validateQuery(transactionListQuerySchema),
   transactionController.listForPayment,
+);
+paymentRouter.post(
+  "/:id/refunds",
+  authorize("payments:refund"),
+  validateParams(idParamSchema),
+  validateBody(refundBodySchema),
+  controller.refund,
+);
+paymentRouter.post(
+  "/:id/void",
+  authorize("payments:refund"),
+  validateParams(idParamSchema),
+  validateBody(voidBodySchema),
+  controller.voidPayment,
 );
 paymentRouter.post(
   "/:id/simulate",

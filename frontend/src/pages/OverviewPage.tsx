@@ -14,6 +14,9 @@ const colors: Record<string, string> = {
   PENDING: "#b7791f",
   PROCESSING: "#2b6cb0",
   REQUIRES_RECONCILIATION: "#6b46c1",
+  VOIDED: "#64748b",
+  PARTIALLY_REFUNDED: "#4338ca",
+  REFUNDED: "#312e81",
 };
 
 export function OverviewPage() {

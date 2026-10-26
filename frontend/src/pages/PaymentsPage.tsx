@@ -69,7 +69,7 @@ export function PaymentsPage() {
             <span>Status</span>
             <select value={status} onChange={(event) => { setPage(1); setStatus(event.target.value); }} aria-label="Status">
               <option value="">All statuses</option>
-              {["PENDING", "PROCESSING", "SUCCEEDED", "FAILED", "REQUIRES_RECONCILIATION"].map((item) => (
+              {["PENDING", "PROCESSING", "SUCCEEDED", "FAILED", "REQUIRES_RECONCILIATION", "VOIDED", "PARTIALLY_REFUNDED", "REFUNDED"].map((item) => (
                 <option key={item} value={item}>{item}</option>
               ))}
             </select>

@@ -19,6 +19,8 @@ export const logger = pino({
       "token",
       "csrfToken",
       "*.csrfToken",
+      "signingSecret",
+      "*.signingSecret",
     ],
     censor: "[Redacted]",
   },

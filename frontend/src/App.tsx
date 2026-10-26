@@ -9,6 +9,8 @@ import { TransactionDetailPage, TransactionsPage } from "./pages/TransactionsPag
 import { WebhookDetailPage, WebhooksPage } from "./pages/WebhooksPage";
 import { ReconciliationDetailPage, ReconciliationPage } from "./pages/ReconciliationPage";
 import { AuditPage, HealthPage, NotFoundPage } from "./pages/AdminPages";
+import { ExceptionsPage } from "./pages/ExceptionsPage";
+import { MerchantWebhooksPage } from "./pages/MerchantWebhooksPage";
 
 export function App() {
   return (
@@ -28,6 +30,8 @@ export function App() {
         <Route path="transactions/:id" element={<TransactionDetailPage />} />
         <Route path="webhooks" element={<WebhooksPage />} />
         <Route path="webhooks/:id" element={<WebhookDetailPage />} />
+        <Route path="exceptions" element={<ExceptionsPage />} />
+        <Route path="merchant-webhooks" element={<MerchantWebhooksPage />} />
         <Route path="reconciliation" element={<ReconciliationPage />} />
         <Route path="reconciliation/:id" element={<ReconciliationDetailPage />} />
         <Route path="audit" element={<RequireAuth permission="audit:read"><AuditPage /></RequireAuth>} />

@@ -28,6 +28,10 @@ async function main(): Promise<void> {
     );
   }
 
+  await prisma.merchantDeliveryAttempt.deleteMany();
+  await prisma.merchantDelivery.deleteMany();
+  await prisma.merchantEndpoint.deleteMany();
+  await prisma.merchantSinkReceipt.deleteMany();
   await prisma.webhookDelivery.deleteMany();
   await prisma.outboxMessage.deleteMany();
   await prisma.webhookEvent.deleteMany();
@@ -409,6 +413,40 @@ async function main(): Promise<void> {
       resourceType: "reconciliation_run",
       resourceId: run.id,
       metadata: { mismatches: result.mismatches.length, matched: result.matchedCount },
+    },
+  });
+
+  const refundTarget = created.find((payment) => payment.status === "SUCCEEDED");
+  if (refundTarget) {
+    const refundAmount = Math.max(1, Math.floor(refundTarget.amountMinor / 2));
+    await prisma.transaction.create({
+      data: {
+        paymentId: refundTarget.id,
+        transactionType: "REFUND",
+        amountMinor: refundAmount,
+        currency: refundTarget.currency,
+        status: "SUCCEEDED",
+        reference: `txn_refund_seed_${refundTarget.merchantReference}`,
+        metadata: { reason: "Seeded partial sandbox refund.", source: "sandbox" },
+      },
+    });
+    await prisma.payment.update({ where: { id: refundTarget.id }, data: { status: "PARTIALLY_REFUNDED" } });
+    await prisma.paymentStateTransition.create({
+      data: {
+        paymentId: refundTarget.id,
+        fromStatus: "SUCCEEDED",
+        toStatus: "PARTIALLY_REFUNDED",
+        reason: "Seeded partial sandbox refund.",
+        actorId: admin.id,
+      },
+    });
+  }
+  await prisma.merchantEndpoint.create({
+    data: {
+      url: "http://localhost:4000/api/v1/merchant-webhooks/sink",
+      description: "Local sandbox merchant sink",
+      signingSecret: "local-demo-merchant-webhook-secret-32",
+      eventTypes: ["payment.succeeded", "payment.failed", "payment.refunded", "payment.voided", "payment.requires_reconciliation"],
     },
   });
 

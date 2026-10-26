@@ -12,7 +12,9 @@ import { requestId } from "./common/middleware/request-id";
 import { requestTimeout } from "./common/middleware/timeout";
 import { auditRouter } from "./modules/audit/routes";
 import { dashboardRouter } from "./modules/dashboard/routes";
+import { exceptionRouter } from "./modules/exceptions/routes";
 import { healthRouter } from "./modules/health/routes";
+import { merchantWebhookRouter } from "./modules/merchant-webhooks/routes";
 import { identityRouter } from "./modules/identity/routes";
 import { paymentRouter } from "./modules/payments/routes";
 import { reconciliationRouter } from "./modules/reconciliation/routes";
@@ -84,6 +86,8 @@ export function createApp() {
   api.use("/payments", paymentRouter);
   api.use("/transactions", transactionRouter);
   api.use("/webhooks", webhookRouter);
+  api.use("/merchant-webhooks", merchantWebhookRouter);
+  api.use("/exceptions", exceptionRouter);
   api.use("/reconciliation", reconciliationRouter);
   api.use("/audit-logs", auditRouter);
   api.use("/dashboard", dashboardRouter);

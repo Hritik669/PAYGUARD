@@ -31,6 +31,30 @@ export const detail = asyncHandler(async (_req: Request, res: Response) => {
   sendData(res, await payments.getPayment(id));
 });
 
+async function requireKey(req: Request): Promise<string> {
+  const parsedKey = idempotencyKeySchema.safeParse(req.header("idempotency-key"));
+  if (!parsedKey.success) {
+    throw new AppError(400, "IDEMPOTENCY_KEY_REQUIRED", "Send an Idempotency-Key header of 8 to 128 URL-safe characters.");
+  }
+  return parsedKey.data;
+}
+
+export const refund = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) throw new AppError(401, "UNAUTHENTICATED", "Authentication is required.");
+  const { id } = res.locals.params as { id: string };
+  const result = await payments.refundPayment(id, req.user, res.locals.body as { amountMinor: number; reason: string }, await requireKey(req), req.requestId);
+  if (result.replayed) res.setHeader("Idempotent-Replayed", "true");
+  sendData(res, result.data, result.statusCode, { replayed: result.replayed });
+});
+
+export const voidPayment = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) throw new AppError(401, "UNAUTHENTICATED", "Authentication is required.");
+  const { id } = res.locals.params as { id: string };
+  const result = await payments.voidPayment(id, req.user, res.locals.body as { reason: string }, await requireKey(req), req.requestId);
+  if (result.replayed) res.setHeader("Idempotent-Replayed", "true");
+  sendData(res, result.data, result.statusCode, { replayed: result.replayed });
+});
+
 export const simulate = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw new AppError(401, "UNAUTHENTICATED", "Authentication is required.");
   const { id } = res.locals.params as { id: string };

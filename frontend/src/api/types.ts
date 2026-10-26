@@ -4,6 +4,12 @@ export type Permission =
   | "payments:read"
   | "payments:write"
   | "payments:simulate"
+  | "payments:refund"
+  | "exceptions:read"
+  | "exceptions:resolve"
+  | "merchant-webhooks:read"
+  | "merchant-webhooks:write"
+  | "merchant-webhooks:replay"
   | "transactions:read"
   | "webhooks:read"
   | "webhooks:replay"
@@ -33,7 +39,15 @@ export type PageMeta = {
 
 export type Envelope<T> = { data: T; meta?: PageMeta };
 
-export type PaymentStatus = "PENDING" | "PROCESSING" | "SUCCEEDED" | "FAILED" | "REQUIRES_RECONCILIATION";
+export type PaymentStatus =
+  | "PENDING"
+  | "PROCESSING"
+  | "SUCCEEDED"
+  | "FAILED"
+  | "REQUIRES_RECONCILIATION"
+  | "VOIDED"
+  | "PARTIALLY_REFUNDED"
+  | "REFUNDED";
 
 export type PaymentSummary = {
   id: string;
@@ -103,6 +117,8 @@ export type WebhookEvent = {
 
 export type PaymentDetail = PaymentSummary & {
   idempotencyKey: string | null;
+  refundedAmountMinor: number;
+  refundableAmountMinor: number;
   transitions: Transition[];
   transactions: Transaction[];
   webhookEvents: WebhookEvent[];

@@ -56,9 +56,17 @@ export function presentPaymentSummary(payment: Payment & { createdBy?: { id: str
 }
 
 export function presentPaymentDetail(payment: PaymentDetail) {
+  const refundedAmountMinor = payment.transactions
+    .filter((transaction) => transaction.transactionType === "REFUND" && transaction.status === "SUCCEEDED")
+    .reduce((sum, transaction) => sum + transaction.amountMinor, 0);
   return {
     ...presentPaymentSummary(payment),
     idempotencyKey: payment.idempotencyKey,
+    refundedAmountMinor,
+    refundableAmountMinor:
+      payment.status === "SUCCEEDED" || payment.status === "PARTIALLY_REFUNDED"
+        ? payment.amountMinor - refundedAmountMinor
+        : 0,
     transitions: payment.transitions.map((transition) => ({
       id: transition.id,
       fromStatus: transition.fromStatus,

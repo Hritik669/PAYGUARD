@@ -19,3 +19,4 @@ backend/dist/
 playwright-report/
 test-results/
 npm-debug.log*
+.neon

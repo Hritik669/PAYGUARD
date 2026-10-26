@@ -9,6 +9,40 @@ import { app, login } from "./helpers";
 import { adminCredentials, analystCredentials } from "./setup";
 
 describe("authentication", () => {
+  it("registers an analyst, rejects a duplicate email, and blocks administrator actions", async () => {
+    const email = `operator_${Date.now()}@payguard.test`;
+    const password = "Register-Demo-Pass-1";
+    const created = await request(app).post("/api/v1/auth/register").send({
+      name: "New Operator",
+      email,
+      password,
+      role: "ADMIN",
+    });
+    expect(created.status).toBe(201);
+    expect(created.body.data.user.role).toBe("ANALYST");
+    expect(created.body.data.user.email).toBe(email);
+    expect(created.body.data.user.passwordHash).toBeUndefined();
+    expect(JSON.stringify(created.body)).not.toContain(password);
+
+    const duplicate = await request(app).post("/api/v1/auth/register").send({
+      name: "New Operator",
+      email,
+      password,
+    });
+    expect(duplicate.status).toBe(409);
+    expect(duplicate.body.error.code).toBe("EMAIL_IN_USE");
+
+    const signedIn = await login(email, password);
+    expect(signedIn.response.status).toBe(200);
+    const forbidden = await request(app)
+      .post("/api/v1/payments")
+      .set("Cookie", signedIn.cookie)
+      .set("X-CSRF-Token", signedIn.csrf)
+      .set("Idempotency-Key", "register-should-fail")
+      .send({ merchantReference: "register_order", amountMinor: 1000, currency: "USD", scenario: "success" });
+    expect(forbidden.status).toBe(403);
+  });
+
   it("logs in, reads the current user, and rejects analyst administrator actions", async () => {
     const admin = await login(adminCredentials.email, adminCredentials.password);
     expect(admin.response.status).toBe(200);

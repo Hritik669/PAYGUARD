@@ -4,7 +4,13 @@ import { sendData } from "../../common/response";
 import { issueCsrfToken } from "../../common/middleware/csrf";
 import { AppError } from "../../common/errors";
 import * as identity from "./service";
-import type { LoginBody } from "./validators";
+import type { LoginBody, RegisterBody } from "./validators";
+
+export const register = asyncHandler(async (req: Request, res: Response) => {
+  const body = res.locals.body as RegisterBody;
+  const session = await identity.register(body, res, req.requestId);
+  sendData(res, session, 201);
+});
 
 export const login = asyncHandler(async (req: Request, res: Response) => {
   const body = res.locals.body as LoginBody;

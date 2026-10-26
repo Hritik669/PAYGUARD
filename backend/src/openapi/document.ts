@@ -68,6 +68,37 @@ export const openApiDocument = {
     },
   },
   paths: {
+    "/auth/register": {
+      post: {
+        tags: ["Auth"],
+        summary: "Create an analyst account",
+        description:
+          "Self-service registration always creates an ANALYST. The role cannot be chosen. The response sets the same HttpOnly session cookies as login and does not return the password hash. Duplicate emails return 409 EMAIL_IN_USE.",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["name", "email", "password"],
+                properties: {
+                  name: { type: "string", minLength: 2, maxLength: 80, example: "Avery Chen" },
+                  email: { type: "string", format: "email", example: "avery@payguard.local" },
+                  password: { type: "string", minLength: 12, maxLength: 72 },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "201": { description: "Analyst created and signed in." },
+          "400": { description: "VALIDATION_ERROR" },
+          "409": { description: "EMAIL_IN_USE" },
+          "429": { description: "RATE_LIMITED" },
+          "503": { description: "RATE_LIMIT_UNAVAILABLE when Redis cannot enforce the limit." },
+        },
+      },
+    },
     "/auth/login": {
       post: {
         tags: ["Auth"],
@@ -234,7 +265,52 @@ export const openApiDocument = {
     },
     "/merchant-webhooks": {
       get: { tags: ["Merchant webhooks"], security: [{ cookieAuth: [] }], responses: { "200": { description: "Endpoints. Signing secrets are omitted." } } },
-      post: { tags: ["Merchant webhooks"], security: [{ cookieAuth: [], csrfHeader: [] }], responses: { "201": { description: "Endpoint created. The signing secret is returned once." } } },
+      post: {
+        tags: ["Merchant webhooks"],
+        security: [{ cookieAuth: [], csrfHeader: [] }],
+        description:
+          "Admin-only. Registers an outbound endpoint. HTTP is allowed only for localhost. Private and link-local addresses are rejected. The signing secret is returned once and is not stored in the audit log.",
+        responses: { "201": { description: "Endpoint created. The signing secret is returned once." }, "400": { description: "INVALID_ENDPOINT_URL or INVALID_EVENT_TYPE" } },
+      },
+    },
+    "/merchant-webhooks/deliveries": {
+      get: {
+        tags: ["Merchant webhooks"],
+        security: [{ cookieAuth: [] }],
+        parameters: [{ $ref: "#/components/parameters/Page" }, { $ref: "#/components/parameters/PageSize" }],
+        responses: { "200": { description: "Delivery history with attempt records. Secrets are not included." } },
+      },
+    },
+    "/merchant-webhooks/deliveries/{id}/replay": {
+      post: {
+        tags: ["Merchant webhooks"],
+        security: [{ cookieAuth: [], csrfHeader: [] }],
+        description: "Admin-only. Requeues a failed or dead-letter merchant delivery.",
+        responses: { "200": { description: "Delivery reset to PENDING." }, "409": { description: "DELIVERY_NOT_REPLAYABLE" } },
+      },
+    },
+    "/merchant-webhooks/receipts": {
+      get: { tags: ["Merchant webhooks"], security: [{ cookieAuth: [] }], responses: { "200": { description: "Receipts recorded by the local sink." } } },
+    },
+    "/merchant-webhooks/sink": {
+      post: {
+        tags: ["Merchant webhooks"],
+        description:
+          "Local development sink. Verifies the HMAC signature and stores a receipt. This route does not use the session cookie.",
+        parameters: [
+          { name: "X-Payguard-Signature", in: "header", required: true, schema: { type: "string" } },
+          { name: "X-Payguard-Endpoint", in: "header", required: true, schema: { type: "string" } },
+        ],
+        responses: { "200": { description: "Receipt stored." }, "401": { description: "INVALID_SIGNATURE" } },
+      },
+    },
+    "/exceptions/payments/{id}/decide": {
+      post: {
+        tags: ["Exceptions"],
+        security: [{ cookieAuth: [], csrfHeader: [] }],
+        description: "Admin-only. Records an operator decision for a payment in REQUIRES_RECONCILIATION.",
+        responses: { "200": { description: "Decision stored." }, "409": { description: "EXCEPTION_NOT_OPEN" } },
+      },
     },
     "/audit-logs": {
       get: { tags: ["Audit"], security: [{ cookieAuth: [] }], responses: { "200": { description: "Admin-only audit history." }, "403": { description: "FORBIDDEN" } } },

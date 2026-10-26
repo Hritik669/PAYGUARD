@@ -8,13 +8,14 @@ Successful responses use `{ "data": ..., "meta": { "requestId": "..." } }`. List
 
 | Method | Path | Notes |
 | --- | --- | --- |
+| POST | `/api/v1/auth/register` | Creates an analyst account and sets the same session cookies as login. The role cannot be chosen. Rate limited. Duplicate emails return `409 EMAIL_IN_USE`. |
 | POST | `/api/v1/auth/login` | Sets HttpOnly access and refresh cookies and a readable CSRF cookie. Rate limited. |
 | POST | `/api/v1/auth/refresh` | Rotates the refresh session. Reuse of a revoked token revokes the user's sessions. |
 | POST | `/api/v1/auth/logout` | Revokes the refresh session and clears cookies. |
 | GET | `/api/v1/auth/me` | Current user and permissions. |
 | GET | `/api/v1/auth/csrf` | Returns the CSRF token. |
 
-State-changing requests send `X-CSRF-Token` equal to the `payguard_csrf` cookie. Login and signed sandbox webhooks are the exceptions.
+State-changing requests send `X-CSRF-Token` equal to the `payguard_csrf` cookie. Registration, login, and signed sandbox webhooks are the exceptions.
 
 ## Payments
 

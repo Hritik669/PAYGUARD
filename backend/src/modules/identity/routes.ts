@@ -3,12 +3,24 @@ import { loadEnv } from "../../config/env";
 import { rateLimit } from "../../common/middleware/rate-limit";
 import { validateBody } from "../../common/middleware/validate";
 import { authenticate } from "../../common/middleware/authenticate";
-import { loginBodySchema } from "./validators";
+import { loginBodySchema, registerBodySchema } from "./validators";
 import * as controller from "./controller";
 
 export const identityRouter = Router();
 
 identityRouter.get("/csrf", controller.csrf);
+
+identityRouter.post(
+  "/register",
+  rateLimit({
+    name: "register",
+    limit: loadEnv().LOGIN_RATE_LIMIT_MAX,
+    windowSeconds: loadEnv().LOGIN_RATE_LIMIT_WINDOW_SECONDS,
+    key: (req) => req.ip ?? "unknown",
+  }),
+  validateBody(registerBodySchema),
+  controller.register,
+);
 
 identityRouter.post(
   "/login",

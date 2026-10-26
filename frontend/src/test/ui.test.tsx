@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 import { PaymentTable } from "../components/PaymentTable";
 import { LoginPage } from "../pages/LoginPage";
+import { RegisterPage } from "../pages/RegisterPage";
 import { AuthProvider } from "../auth/AuthProvider";
 import { RequireAuth } from "../auth/RequireAuth";
 import { shouldAttemptRefresh } from "../api/client";
@@ -42,6 +43,7 @@ describe("refresh coordination", () => {
     expect(shouldAttemptRefresh(401, "/payments", false)).toBe(true);
     expect(shouldAttemptRefresh(401, "/payments", true)).toBe(false);
     expect(shouldAttemptRefresh(401, "/auth/refresh", false)).toBe(false);
+    expect(shouldAttemptRefresh(401, "/auth/register", false)).toBe(false);
     expect(shouldAttemptRefresh(403, "/payments", false)).toBe(false);
   });
 });
@@ -58,6 +60,23 @@ describe("login validation", () => {
     );
     await user.click(screen.getByRole("button", { name: "Sign in" }));
     expect(await screen.findByText("Enter a valid email address.")).toBeInTheDocument();
+    expect(screen.getByText("Password must be at least 12 characters.")).toBeInTheDocument();
+  });
+});
+
+describe("registration validation", () => {
+  it("shows field errors before calling the API", async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <AuthProvider skipBootstrap>
+          <RegisterPage />
+        </AuthProvider>
+      </MemoryRouter>,
+    );
+    await user.click(screen.getByRole("button", { name: "Create analyst account" }));
+    expect(await screen.findByText("Enter your name.")).toBeInTheDocument();
+    expect(screen.getByText("Enter a valid email address.")).toBeInTheDocument();
     expect(screen.getByText("Password must be at least 12 characters.")).toBeInTheDocument();
   });
 });

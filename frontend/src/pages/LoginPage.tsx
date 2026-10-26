@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { toast } from "sonner";
 import { api, ApiError, setCsrfToken } from "../api/client";
@@ -80,6 +80,9 @@ export function LoginPage() {
           <Button className="mt-5 w-full" type="submit" disabled={submitting}>
             {submitting ? "Signing in…" : "Sign in"}
           </Button>
+          <p className="mt-4 text-center text-sm text-muted">
+            Need an analyst login? <Link className="font-semibold text-accent" to="/register">Create an account</Link>
+          </p>
           <div className="mt-4 grid gap-2">
             {demos.map((demo) => (
               <button

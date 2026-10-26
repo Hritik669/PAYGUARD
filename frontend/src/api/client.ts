@@ -30,7 +30,7 @@ export function getCsrfToken(): string | null {
 export function shouldAttemptRefresh(status: number | undefined, url: string | undefined, alreadyRetried: boolean): boolean {
   if (status !== 401 || alreadyRetried) return false;
   const path = url ?? "";
-  if (path.includes("/auth/login") || path.includes("/auth/refresh") || path.includes("/auth/csrf")) return false;
+  if (path.includes("/auth/login") || path.includes("/auth/register") || path.includes("/auth/refresh") || path.includes("/auth/csrf")) return false;
   return true;
 }
 

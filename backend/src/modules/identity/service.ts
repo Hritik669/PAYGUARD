@@ -7,12 +7,13 @@ import { sha256 } from "../../common/hash";
 import { getPrisma } from "../../infrastructure/prisma";
 import { logger } from "../../infrastructure/logger";
 import { getRedis } from "../../infrastructure/redis";
+import { isUniqueViolation } from "../../common/prisma-errors";
 import { findUserByEmail, findUserById } from "../users/repository";
 import { writeAudit } from "../audit/service";
 import { permissionsFor } from "./permissions";
 import { clearAuthCookies, setAuthCookies } from "./cookies";
 import { signAccessToken, signRefreshToken, verifyAccessToken, verifyRefreshToken } from "./tokens";
-import type { LoginBody } from "./validators";
+import type { LoginBody, RegisterBody } from "./validators";
 
 const DUMMY_PASSWORD = "not-a-real-user-password";
 let dummyHash: string | null = null;
@@ -56,6 +57,37 @@ async function issueSession(
   const csrfToken = randomBytes(32).toString("hex");
   setAuthCookies(res, { accessToken: access.token, refreshToken, csrfToken });
   return { user: publicUser(user), csrfToken };
+}
+
+export async function register(input: RegisterBody, res: Response, requestId: string) {
+  const passwordHash = await bcrypt.hash(input.password, loadEnv().BCRYPT_ROUNDS);
+  const prisma = getPrisma();
+  let user;
+  try {
+    user = await prisma.user.create({
+      data: {
+        name: input.name,
+        email: input.email,
+        passwordHash,
+        role: "ANALYST",
+      },
+    });
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      throw new AppError(409, "EMAIL_IN_USE", "An account with this email already exists.");
+    }
+    throw error;
+  }
+
+  await writeAudit(prisma, {
+    actorId: user.id,
+    action: "auth.register",
+    resourceType: "user",
+    resourceId: user.id,
+    requestId,
+    metadata: { role: user.role },
+  });
+  return issueSession(user, res);
 }
 
 export async function login(input: LoginBody, res: Response, requestId: string) {

@@ -31,7 +31,7 @@ BullMQ gives at-least-once delivery. Webhook handlers are idempotent and the pro
 ## Process model
 
 - `backend/src/index.ts` serves HTTP, including `/health/live` and `/health/ready`.
-- `backend/src/worker.ts` publishes unpublished outbox rows, processes webhook jobs, recovers events stuck in `PROCESSING`, and writes a worker heartbeat.
+- `backend/src/worker.ts` publishes unpublished outbox rows, processes webhook jobs, delivers merchant webhooks, recovers events stuck in `PROCESSING`, and writes a worker heartbeat.
 - The React app talks to the API with cookies. It does not connect to PostgreSQL or Redis.
 
 ## Failure boundaries
